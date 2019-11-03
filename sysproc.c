@@ -6,7 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
-
+#include "proc_stat.h"
 int
 sys_fork(void)
 {
@@ -88,4 +88,26 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+int
+sys_waitx(void)
+{
+  int *wtime, *rtime;
+  if(argptr(0,(void*)&wtime,sizeof(int))<0 || argptr(1,(void*)&rtime,sizeof(int))<0)
+  {
+    return -1;
+  }
+  return waitx(wtime,rtime);
+}
+
+int
+sys_getpinfo(void)
+{
+  struct proc_stat *pstat;
+  if(argptr(0,(void* )&pstat,sizeof(struct proc_stat))<0)
+  {
+    return -1;
+  }
+  return getprocinfo(pstat);
 }

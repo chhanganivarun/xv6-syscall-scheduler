@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "proc_stat.h"
 
 struct {
   struct spinlock lock;
@@ -88,7 +89,12 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-
+  acquire(&tickslock);
+  p->ctime = ticks;
+  release(&tickslock);
+  p->etime = 0;
+  p->rtime = 0;
+  p->ttime = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -263,6 +269,10 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
+  acquire(&tickslock);
+  curproc->etime = ticks;
+  release(&tickslock);
+  curproc->ttime = curproc->etime - curproc->ctime;
   sched();
   panic("zombie exit");
 }
@@ -531,4 +541,54 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+int
+waitx(int *wtime, int *rtime)
+{
+  struct proc *p;
+  int havekids, pid;
+  struct proc *curproc = myproc();
+  
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for exited children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != curproc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        *wtime = p->ttime - p->rtime;
+        *rtime = p->rtime;
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || curproc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(curproc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+
+int
+getprocinfo(struct proc_stat *pstat)
+{
+  return pstat->pid;
 }
