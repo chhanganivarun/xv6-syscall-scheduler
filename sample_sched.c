@@ -24,13 +24,14 @@ main(void)
     int a[50000000];
     a[0]=1;
     long i = 0;
-    while(s.runtime < 200)
+    for(int j=0;j<3;j++)
     {
-      if(i%50000000 == 0)
-        printf(1,"i = %d\n",i);
-      temp += a[i%50000000];
-      i++;
-      getpinfo(&s);
+      for(i=0;i<1400000000;i++)
+      {
+        if(i%50000000 == 0)
+          printf(1,"pid %d j = %d i = %d\n",s.pid,j,i);
+        temp += a[i%50000000];
+      }
     }
     temp = temp;
     exit();

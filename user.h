@@ -24,8 +24,9 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int waitx(int* wtime, int* rtime);
-int getpinfo(struct proc_stat* pstat);
+int waitx(int *, int *);
+int getpinfo(struct proc_stat *);
+int set_priority(int);
 
 // ulib.c
 int stat(const char*, struct stat*);

@@ -53,6 +53,8 @@ struct proc {
   uint etime;                  // End Time
   uint rtime;                  // Run Time
   uint ttime;                  // Total Time
+  int priority;                // Process priority [0-100] lower the value, hihger the priority
+  int num_run;
 };
 
 // Process memory is laid out contiguously, low addresses first:
@@ -60,3 +62,4 @@ struct proc {
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
+void updatestatistics();

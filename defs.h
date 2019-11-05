@@ -1,3 +1,4 @@
+#define NULL 0L
 struct buf;
 struct context;
 struct file;
@@ -123,6 +124,7 @@ void            wakeup(void*);
 void            yield(void);
 int             waitx(int *wtime, int *rtime);
 int             getprocinfo(struct proc_stat* pstat);
+int             set_priority(int priority);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
