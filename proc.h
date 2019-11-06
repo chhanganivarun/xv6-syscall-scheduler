@@ -52,9 +52,13 @@ struct proc {
   uint ctime;                  // Creation Time
   uint etime;                  // End Time
   uint rtime;                  // Run Time
-  uint ttime;                  // Total Time
+  uint putime;                 // Last Time the priority was updated
   int priority;                // Process priority [0-100] lower the value, hihger the priority
   int num_run;
+  int ticks[5];
+  int currticks;
+  int ran;
+
 };
 
 // Process memory is laid out contiguously, low addresses first:

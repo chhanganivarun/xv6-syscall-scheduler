@@ -31,8 +31,11 @@ main(void)
       temp += a[i%50000000];
       i++;
       getpinfo(&s);
+      printf(1,"PID %d num_run %d",s.pid,s.num_run);  
     }
     temp = temp;
+    getpinfo(&s);
+    printf(1,"PID %d num_run %d",s.pid,s.num_run);
     exit();
   }
   else

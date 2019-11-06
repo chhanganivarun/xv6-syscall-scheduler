@@ -13,6 +13,20 @@ main(int argc, char *argv[])
     {
         n = atoi(argv[1]);
     }
+    #ifdef PBS
+    int pri[n];
+    for(int i=0;i<n;i++)
+        pri[i]=60;
+
+    for(int i=2;argc>i+1;i+=2)
+    {
+        if(atoi(argv[i])>0 && atoi(argv[i])<=n)
+        {
+            pri[atoi(argv[i])-1] = atoi(argv[i+1]);
+        }
+    }
+    #endif
+
     struct proc_stat s;
     for(int a0=0;a0<n;a0++)
     {
@@ -23,8 +37,13 @@ main(int argc, char *argv[])
         }
         else if(pid == 0)
         {
+            #ifdef PBS
+            if(pri[a0]!=60)
+                set_priority(pri[a0]);
+            #endif
             getpinfo(&s);
-            printf(1,"Child created %d %d\n",s.pid,getpid());
+            
+            printf(1,"Child created %d %d \n",s.pid,s.current_queue);
             long temp = 0;
             for(int j=0;j<2;j++)
             {

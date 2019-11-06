@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "proc_stat.h"
 
+int wake[] = {0,0,0,0,0};
 
 struct {
   struct spinlock lock;
@@ -90,14 +91,24 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  
+  #ifdef PBS
   p->priority = 60;
+  #else
+  #ifdef MLFQ
+  p->priority = 0;
+  for(int i=0;i<5;i++)
+    p->ticks[i]=0;
+  #endif
+  #endif
+
   p->num_run = 0;
+  p->currticks = 0;
   acquire(&tickslock);
   p->ctime = ticks;
   release(&tickslock);
   p->etime = 0;
   p->rtime = 0;
-  p->ttime = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -276,7 +287,6 @@ exit(void)
   acquire(&tickslock);
   curproc->etime = ticks;
   release(&tickslock);
-  curproc->ttime = curproc->etime - curproc->ctime;
   sched();
   panic("zombie exit");
 }
@@ -350,10 +360,17 @@ scheduler(void)
   #ifdef PBS
   cprintf("PBS sceduler\n");
   #else
+  #ifdef MLFQ
+  cprintf("MLFQ scheduler\n");
+  int limits[]={1,2,4,8,16};
+  int count = 0;
+  #else
   cprintf("Unknown sceduler\n");
   #endif
   #endif
   #endif
+  #endif
+
   for(;;){
     // Enable interrupts on this processor.
     sti();
@@ -421,7 +438,7 @@ scheduler(void)
         int min_prior = minP==NULL?-1:minP->priority;
         
         //cprintf("miprior %d\n",min_prior);
-        if(p->state != RUNNABLE || p->priority < min_prior)
+        if(p->state != RUNNABLE || p->priority > min_prior)
           continue;
         // Switch to chosen process.  It is the process's job
         // to release ptable.lock and then reacquire it
@@ -438,6 +455,94 @@ scheduler(void)
         // It should have changed its p->state before coming back.
         c->proc = 0;
       }
+    #else
+    #ifdef MLFQ
+      for(int priority = 0;priority<5;priority++)
+      {
+        for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+        {
+          if(priority!=0)
+          {
+            for(int i = 0;i<priority;i++)
+            {
+                if(wake[i])
+                {
+                  wake[i]=0;
+                  priority = i-1;
+                  break;
+                }
+            }
+          }
+          if(p->state != RUNNABLE)
+            continue;
+          if(p->priority == priority)
+          {
+            // Switch to chosen process.  It is the process's job
+            // to release ptable.lock and then reacquire it
+            // before jumping back to us.
+            c->proc = p;
+            int j;
+            for(j = p->currticks; j<limits[priority];j++)
+            {
+              if(priority == 0)
+              {
+                for(int i = 0; i<priority;i++)
+                {
+                  if(wake[i])
+                    break;
+                }
+              }
+              switchuvm(p);
+              p->state = RUNNING;
+              p->num_run++;
+
+              swtch(&(c->scheduler), p->context);
+              switchkvm();
+              p->ticks[priority]++;
+              p->currticks++;
+              p->ran = 1;
+              count++;
+              if(count == 100) // Every second, refresh 
+              {
+                for(struct proc *tmp = ptable.proc; tmp<&ptable.proc[NPROC];tmp++)
+                {
+                  if(tmp->state !=RUNNING || tmp->priority == 0 || tmp->ran == 1)
+                  {
+                    tmp->ran = 0;
+                    continue;
+                  }
+                  tmp->priority--;
+                  tmp->putime = ticks;
+                  tmp->currticks = 0;
+                  if(tmp->priority < priority)
+                  {
+                    wake[tmp->priority] = 1;
+                  }
+                }
+                count = 0;
+              }
+              if(p->state != RUNNING)
+              {
+                break;
+              }
+            }
+            if(j == limits[priority])
+            {
+              if(p->priority < 4)
+              {
+                p->priority = p->priority+1;
+                p->putime = ticks;
+              }
+              p->currticks = 0;
+            }
+          }
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+      }
+    #endif
     #endif
     #endif
     #endif
@@ -646,7 +751,7 @@ waitx(int *wtime, int *rtime)
         acquire(&tickslock);
         p->etime = ticks;
         release(&tickslock);
-        p->ttime = p->etime - p->ctime;
+        
         *wtime = p->etime - p->ctime - p->rtime;
         *rtime = p->rtime;
         pid = p->pid;
@@ -682,7 +787,7 @@ getprocinfo(struct proc_stat *pstat)
   pstat->runtime = curproc->rtime*10; // millisecond
   pstat->num_run = curproc->num_run;
   #ifndef MLFQ
-  pstat->current_queue = 0;
+  pstat->current_queue = curproc->priority;
   #else
   // TODO: Implement MLFQ
   #endif
@@ -713,11 +818,16 @@ void updatestatistics() {
       case SLEEPING:
 
       case RUNNABLE:
-        p->ttime++;
         break;
       case RUNNING:
         p->rtime++;
-        p->ttime++;
+        #ifdef MLFQ
+          if(p->ctime < ticks - 1000 && p->priority>0 && (ticks-p->ctime)*1.0/p->rtime >4 && ticks-p->putime>200)
+          {
+            p->priority--;
+            p->putime = ticks;
+          }
+        #endif
         break;
       default:
         ;
