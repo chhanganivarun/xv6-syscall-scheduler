@@ -398,19 +398,19 @@ scheduler(void)
       }
     #else
     #ifdef FCFS
-      struct proc *minP = NULL;
+      struct proc *min_process = NULL;
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         if(p->state == RUNNABLE){
-          if (minP!=NULL){
-            if(p->ctime < minP->ctime)
-              minP = p;
+          if (min_process!=NULL){
+            if(p->ctime < min_process->ctime)
+              min_process = p;
           }
           else
-            minP = p;
+            min_process = p;
         }
       }
-      if (minP!=NULL){
-        p = minP;//the process with the smallest creation time
+      if (min_process!=NULL){
+        p = min_process;//the process with the smallest creation time
         c->proc = p;
         switchuvm(p);
         p->state = RUNNING;
@@ -423,19 +423,19 @@ scheduler(void)
       }
     #else
     #ifdef PBS
-      struct proc *minP = NULL;
+      struct proc *min_process = NULL;
       for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
         for(struct proc* pt= ptable.proc; pt < &ptable.proc[NPROC]; pt++){
           if(pt->state == RUNNABLE){
-            if (minP!=NULL){
-              if(pt->priority < minP->priority)
-                minP = pt;
+            if (min_process!=NULL){
+              if(pt->priority < min_process->priority)
+                min_process = pt;
             }
             else
-              minP = pt;
+              min_process = pt;
           }
         }
-        int min_prior = minP==NULL?-1:minP->priority;
+        int min_prior = min_process==NULL?-1:min_process->priority;
         
         //cprintf("miprior %d\n",min_prior);
         if(p->state != RUNNABLE || p->priority > min_prior)
@@ -771,6 +771,7 @@ waitx(int *wtime, int *rtime)
     // No point waiting if we don't have any children.
     if(!havekids || curproc->killed){
       release(&ptable.lock);
+      cprintf("No kids\n");
       return -1;
     }
 
@@ -780,7 +781,7 @@ waitx(int *wtime, int *rtime)
 }
 
 int
-getprocinfo(struct proc_stat *pstat)
+getpinfo(struct proc_stat *pstat)
 {
   struct proc *curproc = myproc();
   pstat->pid = curproc->pid;
@@ -788,6 +789,7 @@ getprocinfo(struct proc_stat *pstat)
   pstat->num_run = curproc->num_run;
   #ifndef MLFQ
   pstat->current_queue = curproc->priority;
+  pstat->ctime = curproc->ctime;
   #else
   // TODO: Implement MLFQ
   #endif
@@ -822,7 +824,7 @@ void updatestatistics() {
       case RUNNING:
         p->rtime++;
         #ifdef MLFQ
-          if(p->ctime < ticks - 1000 && p->priority>0 && (ticks-p->ctime)*1.0/p->rtime >4 && ticks-p->putime>200)
+          if(p->ctime < ticks - 1000 && p->priority>0 && (ticks-p->ctime)*1.0/p->rtime >4 && ticks-p->putime>10)
           {
             p->priority--;
             p->putime = ticks;

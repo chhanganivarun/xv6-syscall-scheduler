@@ -43,30 +43,30 @@ main(int argc, char *argv[])
             #endif
             getpinfo(&s);
             
-            printf(1,"Child created %d %d \n",s.pid,s.current_queue);
+            // printf(1,"Child created %d %d \n",s.pid,s.current_queue);
             long temp = 0;
-            for(int j=0;j<2;j++)
+            for(int j=0;j<1;j++)
             {
-                for(long i=0;i<1400000000;i+=1)
+                for(long i=0;i<140000000;i+=1)
                 {
-                    if(i%50000000 == 0)
-                        printf(1,"%d j= %d i = %d\n",s.pid,j,i);
+                    // printf(1,"");
                     temp = temp + 3.14*89.64;
                 }
             }
-            printf(1,"End %d\n",s.pid);
             temp = temp;
+            printf(1,"End %d\n",s.pid);
+            getpinfo(&s);
+            
             exit();
         }
     }
     int wtime,rtime;
     for(int i=0;i<n;i++)
     {
-        // wait();
         waitx(&wtime,&rtime);
         printf(1,"a[i][%d]=%d\n",i,wtime+rtime);
     }
-
+    
     // free(s);
     exit();
 }

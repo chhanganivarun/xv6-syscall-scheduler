@@ -109,7 +109,7 @@ sys_getpinfo(void)
   {
     return -1;
   }
-  return getprocinfo(pstat);
+  return getpinfo(pstat);
 }
 
 int sys_set_priority(void)
