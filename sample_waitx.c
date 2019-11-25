@@ -31,10 +31,11 @@ main(void)
       temp += a[i%50000000];
       i++;
       getpinfo(&s);
-      printf(1,"PID %d num_run %d",s.pid,s.num_run);  
+      printf(1,"runtime %d",s.runtime);  
     }
     temp = temp;
     getpinfo(&s);
+    // printf(1,"getpinfo %d\n",s.runtime);
     printf(1,"PID %d num_run %d",s.pid,s.num_run);
     exit();
   }
